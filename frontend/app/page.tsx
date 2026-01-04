@@ -5,6 +5,8 @@ import URLInput from '../components/URLInput';
 import MediaCard from '../components/MediaCard';
 import { Sparkles } from 'lucide-react';
 
+import { motion } from 'framer-motion';
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -14,10 +16,7 @@ export default function Home() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-
-
-
-
+  // ... (handlers remain) ...
   const handleUrlSubmit = async (url: string) => {
     setIsLoading(true);
     setLoadingMessage('Fetching video info...');
@@ -123,38 +122,79 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center py-20 px-4 relative overflow-hidden">
+    <motion.main
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center py-30 px-4 relative overflow-hidden"
+    >
       {/* Background Gradients */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[100px]" />
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.2, 0.4, 0.2]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1
+          }}
+          className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[100px]"
+        />
       </div>
 
       <div className="z-10 w-full max-w-5xl flex flex-col items-center gap-8">
         {/* Header */}
-        <div className="text-center space-y-4 animate-fade-in-down">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm text-gray-300 mb-4">
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="text-center space-y-4"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm text-gray-300 mb-4 hover:bg-white/10 transition-colors cursor-default">
             <Sparkles className="w-4 h-4 text-yellow-400" />
             <span>Support for YouTube, Instagram, & more</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-200 to-gray-500 tracking-tight">
+          <h1 className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-white via-gray-200 to-gray-500 tracking-tight leading-snug">
             ClipForge
           </h1>
           <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto font-light">
-            Download high-quality videos, audio, and subtitles directly from your favorite platforms. Simple, fast, and free.
+            Download high-quality videos, audio, and many more things directly from your favorite platforms. Simple, fast, and free.
           </p>
-        </div>
+        </motion.div>
 
         {/* Input Section */}
-        <div className="w-full mt-8 animate-fade-in-up">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="w-full mt-8"
+        >
           <URLInput onSubmit={handleUrlSubmit} isLoading={isLoading} loadingMessage={loadingMessage} />
-        </div>
+        </motion.div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-6 py-4 rounded-xl backdrop-blur-md animate-shake">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-red-500/10 border border-red-500/20 text-red-500 px-6 py-4 rounded-xl backdrop-blur-md"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
         {/* Result Section */}
@@ -166,6 +206,6 @@ export default function Home() {
           />
         )}
       </div>
-    </main>
+    </motion.main>
   );
 }

@@ -35,31 +35,33 @@ const URLInput: React.FC<URLInputProps> = ({ onSubmit, isLoading, loadingMessage
     return (
         <div className="w-full max-w-2xl mx-auto">
             <form onSubmit={handleSubmit} className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                    <Search className="w-5 h-5" />
+                <div className="absolute inset-y-0 left-0 pl-4 z-10 flex items-center pointer-events-none text-gray-400">
+                    <Search className="w-5 h-5 z-10" />
                 </div>
                 <input
                     type="text"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    placeholder="Paste URL from YouTube, Instagram, Twitter..."
-                    className="w-full py-4 pl-12 pr-32 bg-gray-800/50 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all backdrop-blur-sm shadow-xl"
+                    placeholder="Paste URL of any social media platform.."
+                    className="w-full py-5 pl-12 pr-55 bg-gray-800/50 border border-gray-700 rounded-2xl text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all backdrop-blur-sm shadow-xl hover:bg-gray-800/70"
                     disabled={isLoading}
                 />
-                <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="absolute right-2 top-2 bottom-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium px-6 rounded-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
-                >
-                    {isLoading ? (
-                        <div className="flex items-center gap-2">
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            {loadingMessage && <span className="text-xs whitespace-nowrap">{loadingMessage}</span>}
-                        </div>
-                    ) : (
-                        'Start'
-                    )}
-                </button>
+                <div className="absolute right-2 top-2 bottom-2 font-medium">
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="h-full px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                {loadingMessage && <span className="text-xs whitespace-nowrap">{loadingMessage}</span>}
+                            </div>
+                        ) : (
+                            'Start'
+                        )}
+                    </button>
+                </div>
             </form>
             {error && <p className="text-red-400 mt-2 text-sm ml-2">{error}</p>}
         </div>

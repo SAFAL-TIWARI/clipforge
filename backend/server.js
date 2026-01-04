@@ -51,6 +51,26 @@ app.post('/api/info', async (req, res) => {
     }
 });
 
+app.get('/api/proxy-image', async (req, res) => {
+    try {
+        const { url } = req.query;
+        if (!url) return res.status(400).send('URL required');
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch image');
+
+        const contentType = response.headers.get('content-type');
+        res.setHeader('Content-Type', contentType || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+
+        const arrayBuffer = await response.arrayBuffer();
+        res.send(Buffer.from(arrayBuffer));
+    } catch (error) {
+        console.error('Proxy Error:', error);
+        res.status(500).end();
+    }
+});
+
 app.get('/api/download', async (req, res) => {
     try {
         const { url, format, type, quality, lang, isAuto } = req.query;
