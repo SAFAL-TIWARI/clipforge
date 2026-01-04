@@ -3,16 +3,7 @@ const fs = require('fs');
 
 const getFormats = async (ytDlp, url) => {
     try {
-        const args = [
-            url,
-            '--dump-json',
-            '--no-playlist',
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        ];
-
-        console.log(`[Info] Fetching metadata for: ${url}`);
-        const stdout = await ytDlp.execPromise(args);
-        const metadata = JSON.parse(stdout);
+        const metadata = await ytDlp.getVideoInfo(url);
 
         let formats = metadata.formats || [];
 

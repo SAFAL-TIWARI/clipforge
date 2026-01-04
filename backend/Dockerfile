@@ -1,17 +1,12 @@
-# Use Node.js 18 (full image, not slim) to ensure all networking/certs libs are present
-FROM node:18
+# Use Node.js 18 on Debian (slim) which is compatible with most binaries
+FROM node:18-slim
 
 # Install system dependencies
 # ffmpeg: required for media processing
 # python3: often required by yt-dlp related tools
-# curl: for downloading yt-dlp
 RUN apt-get update && \
-    apt-get install -y ffmpeg python3 ca-certificates curl procps && \
+    apt-get install -y ffmpeg python3 ca-certificates procps && \
     rm -rf /var/lib/apt/lists/*
-
-# Install yt-dlp globally
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
 
 # Set working directory
 WORKDIR /app
