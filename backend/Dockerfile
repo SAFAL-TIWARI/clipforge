@@ -1,5 +1,5 @@
-# Use Node.js 18 on Debian (slim) which is compatible with most binaries
-FROM node:18-slim
+# Use Node.js 18 (full image, not slim) to ensure all networking/certs libs are present
+FROM node:18
 
 # Install system dependencies
 # ffmpeg: required for media processing
