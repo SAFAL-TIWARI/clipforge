@@ -3,7 +3,14 @@ const fs = require('fs');
 
 const getFormats = async (ytDlp, url) => {
     try {
-        const metadata = await ytDlp.getVideoInfo(url);
+        // Use execPromise to include --js-runtimes node
+        const metadataJSON = await ytDlp.execPromise([
+            url,
+            '--dump-json',
+            '--js-runtimes', 'node',
+            '--no-warnings'
+        ]);
+        const metadata = JSON.parse(metadataJSON);
 
         let formats = metadata.formats || [];
 
@@ -117,7 +124,8 @@ const getFormats = async (ytDlp, url) => {
             },
             thumbnails,
             subtitles,
-            original_url: url
+            original_url: url,
+            language: metadata.language // Add language to return object
         };
     } catch (error) {
         throw error;
@@ -147,7 +155,7 @@ const downloadMedia = async (ytDlp, url, options, res, ffmpegPath, tempDir) => {
         }
     }
 
-    let args = [url];
+    let args = [url, '--js-runtimes', 'node'];
     let outputTemplate = path.join(tempDir, `download_${timestamp}.%(ext)s`);
 
     if (ffmpegPath) {
@@ -174,9 +182,8 @@ const downloadMedia = async (ytDlp, url, options, res, ffmpegPath, tempDir) => {
             // Text needs to be stripped, so we start with SRT
             args.push('--convert-subs', 'srt');
         } else if (format === 'raw') {
-            // Raw should be VTT (web standard) or original. VTT is safest for "raw" display in browser.
-            // If we don't convert, we might get various formats. Converting to vtt ensures consistency for "View Raw".
-            args.push('--convert-subs', 'vtt');
+            // User requested Raw to be "text format", so we use SRT as base for stripping, just like 'text'
+            args.push('--convert-subs', 'srt');
         } else if (['vtt', 'ass', 'lrc'].includes(format)) {
             args.push('--convert-subs', format);
         }
@@ -240,45 +247,49 @@ const downloadMedia = async (ytDlp, url, options, res, ffmpegPath, tempDir) => {
                     if (subFile) {
                         const fullPath = path.join(tempDir, subFile);
 
-                        // 1. Text Format (Strip timestamps)
-                        if (format === 'text') {
+                        // 1. Text or Raw Format (Strip timestamps)
+                        if (format === 'text' || format === 'raw') {
                             fs.readFile(fullPath, 'utf8', (err, data) => {
                                 if (err) return res.status(500).send('Read Error');
 
-                                const textContent = data
+                                let textContent = data
                                     .replace(/^\d+$/gm, '')
                                     .replace(/\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}/g, '') // SRT
                                     .replace(/\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}/g, '') // VTT
                                     .replace(/WEBVTT.*/g, '')
-                                    .replace(/\r\n/g, '\n')
-                                    .replace(/\n\s*\n/g, '\n')
                                     .replace(/<[^>]*>/g, '')
                                     .trim();
 
+                                // Deduplicate lines
+                                const lines = textContent.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+                                const uniqueLines = [];
+                                let lastLine = '';
+
+                                for (const line of lines) {
+                                    if (line !== lastLine) {
+                                        uniqueLines.push(line);
+                                        lastLine = line;
+                                    }
+                                }
+
+                                const finalContent = uniqueLines.join('\n');
+
                                 res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-                                res.setHeader('Content-Disposition', `attachment; filename="${subFile.replace(/\.(srt|vtt|ass)/, '')}.txt"`);
-                                res.send(textContent);
+
+                                if (format === 'raw') {
+                                    res.setHeader('Content-Disposition', 'inline');
+                                } else {
+                                    res.setHeader('Content-Disposition', `attachment; filename="${subFile.replace(/\.(srt|vtt|ass)/, '')}.txt"`);
+                                }
+
+                                res.send(finalContent);
 
                                 setTimeout(() => { try { fs.unlinkSync(fullPath); } catch (e) { } }, 5000);
                             });
                             return;
                         }
 
-                        // 2. Raw Format (Inline view)
-                        if (format === 'raw') {
-                            fs.readFile(fullPath, 'utf8', (err, data) => {
-                                if (err) return res.status(500).send('Read Error');
-
-                                res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-                                res.setHeader('Content-Disposition', 'inline');
-                                res.send(data);
-
-                                setTimeout(() => { try { fs.unlinkSync(fullPath); } catch (e) { } }, 5000);
-                            });
-                            return;
-                        }
-
-                        // 3. Default (Download file)
+                        // 2. Default (Download file)
                         res.download(fullPath, subFile, (err) => {
                             if (!err) {
                                 setTimeout(() => { try { fs.unlinkSync(fullPath); } catch (e) { } }, 5000);

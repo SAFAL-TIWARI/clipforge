@@ -40,6 +40,7 @@ interface VideoInfo {
     thumbnails?: Thumbnail[];
     subtitles?: Subtitle[];
     original_url: string;
+    language?: string; // Added language field
 }
 
 interface MediaCardProps {
@@ -50,6 +51,8 @@ interface MediaCardProps {
 
 const MediaCard: React.FC<MediaCardProps> = ({ info, onDownload, downloadingId }) => {
     const [activeTab, setActiveTab] = useState<'video' | 'audio' | 'subtitle' | 'thumbnail'>('video');
+    const [expandedVideoFmt, setExpandedVideoFmt] = useState<string | null>(null);
+    const [expandedAudioFmt, setExpandedAudioFmt] = useState<string | null>(null);
 
     const formatFileSize = (bytes?: number) => {
         if (!bytes) return 'Unknown size';
@@ -64,17 +67,59 @@ const MediaCard: React.FC<MediaCardProps> = ({ info, onDownload, downloadingId }
         return `${min}:${sec < 10 ? '0' : ''}${sec}`;
     };
 
+    // Helper to group formats by extension
+    const groupByExtension = (formats: Format[]) => {
+        const groups: { [key: string]: Format[] } = {};
+        formats.forEach(fmt => {
+            const ext = (fmt.ext || 'unknown').toUpperCase();
+            if (!groups[ext]) groups[ext] = [];
+            groups[ext].push(fmt);
+        });
+        return groups;
+    };
+
+    const videoGroups = info.formats.video ? groupByExtension(info.formats.video) : {};
+    const audioGroups = info.formats.audio ? groupByExtension(info.formats.audio) : {};
+
+    const toggleVideoFormat = (fmt: string) => {
+        setExpandedVideoFmt(expandedVideoFmt === fmt ? null : fmt);
+    };
+
+    const toggleAudioFormat = (fmt: string) => {
+        setExpandedAudioFmt(expandedAudioFmt === fmt ? null : fmt);
+    };
+
+    // Sort subtitles: Original language first (if matches info.language), then Alphabetical
+    const getSortedSubtitles = () => {
+        if (!info.subtitles) return [];
+        return [...info.subtitles].sort((a, b) => {
+            // Check against info.language (e.g., 'en', 'fr')
+            // info.language is usually a 2-char code. a.lang might be 'en', 'en-US', etc.
+            const lang = info.language || '';
+            const isAOriginal = a.lang === lang || a.lang.startsWith(lang + '-');
+            const isBOriginal = b.lang === lang || b.lang.startsWith(lang + '-');
+
+            if (isAOriginal && !isBOriginal) return -1;
+            if (!isAOriginal && isBOriginal) return 1;
+
+            // Secondary sort: Alphabetical by name
+            return a.name.localeCompare(b.name);
+        });
+    };
+
+    const sortedSubtitles = getSortedSubtitles();
+
     return (
         <div className="w-full max-w-4xl mx-auto mt-12 animate-fade-in-up">
             <div className="bg-gray-800/40 backdrop-blur-md border border-gray-700 rounded-2xl overflow-hidden shadow-2xl">
-                <div className="flex flex-col md:flex-row">
+                <div className="flex flex-col md:flex-row h-full">
                     {/* Thumbnail Section */}
-                    {/* Changed object-cover to object-contain and added bg-black to fit 9:16 or other ratios */}
-                    <div className="md:w-1/3 relative group bg-black flex items-center justify-center">
+                    {/* Changed object-cover to object-contain and added bg-black to fit 9:16 or other ratios. h-auto to adjust height based on content or min-height */}
+                    <div className="md:w-1/3 relative group bg-black flex items-center justify-center min-h-[300px]">
                         <img
                             src={info.thumbnail}
                             alt={info.title}
-                            className="w-full h-full object-contain min-h-[200px] max-h-[400px]"
+                            className="w-full h-full object-contain max-h-[500px]"
                         />
                         <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-md font-mono">
                             {formatDuration(info.duration)}
@@ -107,85 +152,129 @@ const MediaCard: React.FC<MediaCardProps> = ({ info, onDownload, downloadingId }
                         </div>
 
                         {/* Options Grid */}
-                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-[400px]">
                             {/* VIDEO TAB */}
                             {activeTab === 'video' && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {info.formats.video.map((fmt, idx) => {
-                                        // Force unique ID by combining backend ID (if exists) with extension, or full composite fallback
-                                        const itemId = fmt.id ? `${fmt.id}-${fmt.ext}` : `video-${fmt.ext}-${fmt.resolution || idx}`;
-                                        const isThisDownloading = downloadingId === itemId;
-                                        return (
-                                            <div key={`${fmt.id}-${idx}`} className="flex items-center justify-between p-3 bg-gray-900/30 border border-gray-700/50 rounded-xl hover:border-purple-500/50 hover:bg-gray-700/30 transition-all group">
+                                <div className="space-y-4">
+                                    {Object.entries(videoGroups).map(([ext, formats]) => (
+                                        <div key={ext} className="border border-gray-700/50 rounded-xl overflow-hidden bg-gray-900/30">
+                                            <button
+                                                onClick={() => toggleVideoFormat(ext)}
+                                                className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
+                                            >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 group-hover:text-purple-300">
+                                                    <div className="bg-purple-500/20 p-2 rounded-lg text-purple-400">
                                                         <Film className="w-5 h-5" />
                                                     </div>
-                                                    <div>
-                                                        <div className="font-bold text-white uppercase">{fmt.ext} <span className="text-purple-400 text-sm ml-1">{fmt.resolution}</span></div>
-                                                        <div className="text-xs text-gray-400">{formatFileSize(fmt.filesize)}</div>
-                                                    </div>
+                                                    <span className="font-bold text-white text-lg">{ext}</span>
+                                                    <span className="text-sm text-gray-400">({formats.length} qualities)</span>
                                                 </div>
-                                                <button
-                                                    onClick={() => onDownload({ ...fmt, id: itemId }, 'video')}
-                                                    disabled={!!downloadingId}
-                                                    className="bg-gray-700 hover:bg-purple-600 text-white p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {isThisDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
+                                                <span className={`transform transition-transform ${expandedVideoFmt === ext ? 'rotate-180' : ''}`}>
+                                                    ▼
+                                                </span>
+                                            </button>
+
+                                            {/* Dropdown Content */}
+                                            {expandedVideoFmt === ext && (
+                                                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-black/20 animate-fade-in-down">
+                                                    {formats.map((fmt, idx) => {
+                                                        const itemId = fmt.id ? `${fmt.id}-${fmt.ext}` : `video-${fmt.ext}-${fmt.resolution || idx}`;
+                                                        const isThisDownloading = downloadingId === itemId;
+                                                        return (
+                                                            <div key={`${fmt.id}-${idx}`} className="flex items-center justify-between p-3 bg-gray-900/40 border border-gray-700/30 rounded-lg hover:border-purple-500/50 transition-all group">
+                                                                <div>
+                                                                    <div className="font-bold text-white text-sm">{fmt.resolution || 'Unknown'}</div>
+                                                                    <div className="text-xs text-gray-400">{formatFileSize(fmt.filesize)}</div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => onDownload({ ...fmt, id: itemId }, 'video')}
+                                                                    disabled={!!downloadingId}
+                                                                    className="bg-gray-700 hover:bg-purple-600 text-white p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {isThisDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
                             {/* AUDIO TAB */}
                             {activeTab === 'audio' && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {info.formats.audio.map((fmt, idx) => {
-                                        // Force unique ID by combining backend ID (if exists) with extension, or full composite fallback
-                                        const itemId = fmt.id ? `${fmt.id}-${fmt.ext}` : `audio-${fmt.ext}-${fmt.abr || idx}`;
-                                        const isThisDownloading = downloadingId === itemId;
-                                        return (
-                                            <div key={`${fmt.id}-${idx}`} className="flex items-center justify-between p-3 bg-gray-900/30 border border-gray-700/50 rounded-xl hover:border-blue-500/50 hover:bg-gray-700/30 transition-all group">
+                                <div className="space-y-4">
+                                    {Object.entries(audioGroups).map(([ext, formats]) => (
+                                        <div key={ext} className="border border-gray-700/50 rounded-xl overflow-hidden bg-gray-900/30">
+                                            <button
+                                                onClick={() => toggleAudioFormat(ext)}
+                                                className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
+                                            >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 group-hover:text-blue-300">
+                                                    <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400">
                                                         <Music className="w-5 h-5" />
                                                     </div>
-                                                    <div>
-                                                        <div className="font-bold text-white uppercase">{fmt.ext || 'MP3'} <span className="text-blue-400 text-sm ml-1">{fmt.abr ? `${Math.round(fmt.abr)}kbps` : 'Best'}</span></div>
-                                                        <div className="text-xs text-gray-400">{formatFileSize(fmt.filesize)}</div>
-                                                    </div>
+                                                    <span className="font-bold text-white text-lg">{ext}</span>
+                                                    <span className="text-sm text-gray-400">({formats.length} options)</span>
                                                 </div>
-                                                <button
-                                                    onClick={() => onDownload({ ...fmt, id: itemId }, 'audio')}
-                                                    disabled={!!downloadingId}
-                                                    className="bg-gray-700 hover:bg-blue-600 text-white p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {isThisDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
+                                                <span className={`transform transition-transform ${expandedAudioFmt === ext ? 'rotate-180' : ''}`}>
+                                                    ▼
+                                                </span>
+                                            </button>
+
+                                            {/* Dropdown Content */}
+                                            {expandedAudioFmt === ext && (
+                                                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-black/20 animate-fade-in-down">
+                                                    {formats.map((fmt, idx) => {
+                                                        const itemId = fmt.id ? `${fmt.id}-${fmt.ext}` : `audio-${fmt.ext}-${fmt.abr || idx}`;
+                                                        const isThisDownloading = downloadingId === itemId;
+                                                        return (
+                                                            <div key={`${fmt.id}-${idx}`} className="flex items-center justify-between p-3 bg-gray-900/40 border border-gray-700/30 rounded-lg hover:border-blue-500/50 transition-all group">
+                                                                <div>
+                                                                    <div className="font-bold text-white text-sm">{fmt.abr ? `${Math.round(fmt.abr)}kbps` : 'Best Quality'}</div>
+                                                                    <div className="text-xs text-gray-400">{formatFileSize(fmt.filesize)}</div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => onDownload({ ...fmt, id: itemId }, 'audio')}
+                                                                    disabled={!!downloadingId}
+                                                                    className="bg-gray-700 hover:bg-blue-600 text-white p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {isThisDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
                             {/* SUBTITLES TAB */}
                             {activeTab === 'subtitle' && (
                                 <div className="space-y-3">
-                                    {(!info.subtitles || info.subtitles.length === 0) && (
+                                    {(!sortedSubtitles || sortedSubtitles.length === 0) && (
                                         <div className="text-gray-400 text-center py-4">No subtitles found.</div>
                                     )}
-                                    {info.subtitles?.map((sub, idx) => {
+                                    {sortedSubtitles?.map((sub, idx) => {
                                         const baseId = `subtitle-${sub.lang}`;
+                                        // Highlight if it's likely the original language
+                                        const isOriginal = info.language && (sub.lang === info.language || sub.lang.startsWith(info.language + '-'));
+
                                         return (
-                                            <div key={idx} className="flex flex-col sm:flex-row items-center justify-between p-3 bg-gray-900/30 border border-gray-700/50 rounded-xl transition-all">
+                                            <div key={idx} className={`flex flex-col sm:flex-row items-center justify-between p-3 border rounded-xl transition-all ${isOriginal ? 'bg-green-900/20 border-green-500/50' : 'bg-gray-900/30 border-gray-700/50'}`}>
                                                 <div className="flex items-center gap-3 mb-3 sm:mb-0">
                                                     <div className="bg-green-500/20 p-2 rounded-lg text-green-400">
                                                         <Captions className="w-5 h-5" />
                                                     </div>
                                                     <div>
-                                                        <div className="font-bold text-white">{sub.name}</div>
+                                                        <div className="font-bold text-white flex items-center gap-2">
+                                                            {sub.name}
+                                                            {isOriginal && <span className="text-[10px] bg-green-500 text-black px-1.5 py-0.5 rounded font-bold uppercase">Original</span>}
+                                                        </div>
                                                         <div className="text-xs text-gray-400 uppercase">{sub.lang}</div>
                                                     </div>
                                                 </div>
