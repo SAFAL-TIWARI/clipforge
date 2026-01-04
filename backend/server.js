@@ -61,7 +61,7 @@ app.post('/api/info', async (req, res) => {
         res.json(info);
     } catch (error) {
         console.error('Info Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch metadata' });
+        res.status(500).json({ error: error.message || error.stderr || 'Failed to fetch metadata' });
     }
 });
 
