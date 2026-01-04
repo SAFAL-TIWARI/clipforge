@@ -3,7 +3,7 @@ const cors = require('cors');
 const YTDlpWrap = require('yt-dlp-wrap').default;
 const fs = require('fs');
 const path = require('path');
-const ffmpegPath = require('ffmpeg-static');
+const ffmpegPath = process.platform === 'win32' ? require('ffmpeg-static') : 'ffmpeg';
 const { getFormats, downloadMedia } = require('./services/downloader');
 
 const app = express();
@@ -21,18 +21,32 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 // Initialize yt-dlp
 const ytDlpWrap = new YTDlpWrap();
 const isWindows = process.platform === 'win32';
-const binaryName = isWindows ? 'yt-dlp.exe' : 'yt-dlp';
-const binaryPath = path.join(__dirname, binaryName);
 
-// Ensure binary exists
-if (!fs.existsSync(binaryPath)) {
-    console.log('Downloading yt-dlp binary...');
-    YTDlpWrap.downloadFromGithub(binaryPath).then(() => {
-        console.log('yt-dlp downloaded.');
-        ytDlpWrap.setBinaryPath(binaryPath);
-    }).catch(err => console.error('Error downloading yt-dlp:', err));
-} else {
+// Path logic:
+// 1. On Windows, use local yt-dlp.exe (download if missing)
+// 2. On Linux (Docker), use system /usr/local/bin/yt-dlp if available, else local
+let binaryPath;
+if (!isWindows && fs.existsSync('/usr/local/bin/yt-dlp')) {
+    binaryPath = '/usr/local/bin/yt-dlp';
     ytDlpWrap.setBinaryPath(binaryPath);
+} else {
+    const binaryName = isWindows ? 'yt-dlp.exe' : 'yt-dlp';
+    binaryPath = path.join(__dirname, binaryName);
+
+    // Ensure binary exists
+    if (!fs.existsSync(binaryPath)) {
+        console.log('Downloading yt-dlp binary...');
+        YTDlpWrap.downloadFromGithub(binaryPath).then(() => {
+            console.log('yt-dlp downloaded.');
+            // Ensure executable on Linux
+            if (!isWindows) {
+                try { fs.chmodSync(binaryPath, '755'); } catch (e) { console.error('Chmod failed:', e); }
+            }
+            ytDlpWrap.setBinaryPath(binaryPath);
+        }).catch(err => console.error('Error downloading yt-dlp:', err));
+    } else {
+        ytDlpWrap.setBinaryPath(binaryPath);
+    }
 }
 
 app.get('/', (req, res) => {
