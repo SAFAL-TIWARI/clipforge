@@ -2,7 +2,7 @@
 
 **ClipForge** is a professional, high-performance media downloader and converter built with a modern tech stack. It allows users to download videos, audio, subtitles, and thumbnails from a wide range of platforms with ease.
 
-[**🌐 Live Demo**](https://clipforge-gamma.vercel.app/)
+<a href="https://clipforge-gamma.vercel.app/" target="_blank"><strong>🌐 Live Demo</strong></a>
 
 ## 🚀 Features
 
@@ -16,7 +16,7 @@
 ## 🛠️ Tech Stack
 
 ### Frontend
--   **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+-   **Framework**: <a href="https://nextjs.org/" target="_blank">Next.js 16</a> (App Router)
 -   **Language**: TypeScript
 -   **Styling**: Tailwind CSS
 -   **Animations**: Framer Motion
@@ -25,7 +25,7 @@
 ### Backend
 -   **Runtime**: Node.js
 -   **Framework**: Express.js
--   **Core Engine**: [yt-dlp](https://github.com/yt-dlp/yt-dlp) (via `yt-dlp-wrap`)
+-   **Core Engine**: <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> (via `yt-dlp-wrap`)
 -   **Media Processing**: FFmpeg (via `ffmpeg-static` & `fluent-ffmpeg`)
 
 ## 📦 Installation
